@@ -1,33 +1,20 @@
 {
-  "_comment": "Edit this file to add your providers/models. Pi loads it from ~/.pi/agent/models.json. See https://pi.dev/docs/latest for full config reference.",
+  "_comment": "Provider/model config for orchestrator + all sub-agents. Set API keys via env vars or /login. Edit models as needed.",
   "providers": {
-    "opencode-go": {
-      "_comment": "Example: OpenCode Go provider (minimax-m2.7). Uncomment and set API key to use.",
-      "baseUrl": "https://opencode.ai/zen/go/v1",
-      "api": "openai-completions",
-      "apiKey": "$OPENCODE_GO_API_KEY",
-      "models": [
-        {
-          "id": "minimax-m2.7",
-          "name": "MiniMax M2.7 (OpenCode Go)",
-          "reasoning": true,
-          "input": ["text"],
-          "contextWindow": 200000,
-          "maxTokens": 16384,
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
-        }
-      ]
-    },
     "anthropic": {
-      "_comment": "Built-in Anthropic provider. Set ANTHROPIC_API_KEY env var or use /login. Override baseUrl or add custom models here.",
+      "_comment": "Used by: code-reviewer, devops-engineer. Set ANTHROPIC_API_KEY env var or use /login.",
       "apiKey": "$ANTHROPIC_API_KEY"
     },
     "openai": {
-      "_comment": "Built-in OpenAI provider. Set OPENAI_API_KEY env var or use /login.",
+      "_comment": "Used by: software-engineer (o4-mini), test-engineer (gpt-4o). Set OPENAI_API_KEY env var or use /login.",
       "apiKey": "$OPENAI_API_KEY"
     },
+    "google": {
+      "_comment": "Used by: frontend-developer (gemini-2-flash). Set GOOGLE_API_KEY env var or use /login.",
+      "apiKey": "$GOOGLE_API_KEY"
+    },
     "openrouter": {
-      "_comment": "OpenRouter — access many models via one API. Set OPENROUTER_API_KEY.",
+      "_comment": "Optional: access all models via one API. Set OPENROUTER_API_KEY if using OpenRouter instead of direct providers.",
       "baseUrl": "https://openrouter.ai/api/v1",
       "api": "openai-completions",
       "apiKey": "$OPENROUTER_API_KEY",
@@ -42,13 +29,31 @@
           "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 }
         },
         {
+          "id": "openai/o4-mini",
+          "name": "OpenAI o4-mini (OpenRouter)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 200000,
+          "maxTokens": 100000,
+          "cost": { "input": 1.1, "output": 4.4, "cacheRead": 0.275, "cacheWrite": 1.1 }
+        },
+        {
           "id": "openai/gpt-4o",
           "name": "GPT-4o (OpenRouter)",
           "reasoning": false,
           "input": ["text", "image"],
           "contextWindow": 128000,
           "maxTokens": 16384,
-          "cost": { "input": 2.5, "output": 10, "cacheRead": 0, "cacheWrite": 0 }
+          "cost": { "input": 2.5, "output": 10, "cacheRead": 1.25, "cacheWrite": 2.5 }
+        },
+        {
+          "id": "google/gemini-2-flash",
+          "name": "Gemini 2 Flash (OpenRouter)",
+          "reasoning": false,
+          "input": ["text", "image"],
+          "contextWindow": 1000000,
+          "maxTokens": 8192,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
         }
       ]
     }

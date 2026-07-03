@@ -1,34 +1,70 @@
 # Agentic Workflow for Pi
 
-A generic, project-agnostic agentic coding workflow for [Pi](https://pi.dev) — the terminal-based coding agent.
+A multi-agent orchestration workflow for [Pi](https://pi.dev) — the terminal-based coding agent.
+
+The default Pi acts as an **orchestrator**. It never writes code itself. It delegates to specialized sub-agents, each with its own model and persona.
+
+## Architecture
+
+```
+USER
+  │
+  ▼
+PI (ORCHESTRATOR)
+  │  model: Anthropic Claude Sonnet 4 (configurable)
+  │  role: understand intent, break into tasks, delegate, review, relay
+  │
+  ├── delegate("frontend-developer", task)
+  │     → spawns: pi -p --model google/gemini-2-flash
+  │     → returns result to orchestrator
+  │
+  ├── delegate("software-engineer", task)
+  │     → spawns: pi -p --model openai/o4-mini
+  │     → returns result to orchestrator
+  │
+  ├── delegate("code-reviewer", task)
+  │     → spawns: pi -p --model anthropic/claude-sonnet-4
+  │     → returns result to orchestrator
+  │
+  ├── delegate("devops-engineer", task)
+  │     → spawns: pi -p --model anthropic/claude-sonnet-4
+  │     → returns result to orchestrator
+  │
+  └── delegate("test-engineer", task)
+        → spawns: pi -p --model openai/gpt-4o
+        → returns result to orchestrator
+```
 
 ## What's Inside
 
 ```
 agentic-workflow/
 ├── .pi/agent/
-│   ├── AGENTS.md              # Global coding instructions (behavior, git discipline, safety)
-│   ├── settings.json         # Pi settings (compaction, retry, steering, skills)
-│   ├── models.json           # Provider/model config template (Anthropic, OpenAI, OpenRouter, OpenCode Go)
+│   ├── AGENTS.md              # Orchestrator instructions — delegate, never code
+│   ├── settings.json         # Pi settings (orchestrator model, compaction, retry)
+│   ├── models.json           # Provider config (Anthropic, OpenAI, Google, OpenRouter)
+│   ├── sub-agents.json       # Sub-agent roster (models, personas — edit this!)
+│   ├── extensions/
+│   │   └── sub-agent.ts      # Extension registering the "delegate" tool
 │   ├── skills/
-│   │   ├── code-review/      # Structured code review workflow
+│   │   ├── code-review/      # Code review workflow (used by code-reviewer)
 │   │   │   ├── SKILL.md
 │   │   │   ├── scripts/pr-diff.sh
 │   │   │   └── references/checklist.md
-│   │   ├── feature-builder/  # End-to-end feature building workflow (TDD)
+│   │   ├── feature-builder/  # Feature building workflow (used by software-engineer)
 │   │   │   ├── SKILL.md
 │   │   │   └── references/planning-template.md
-│   │   └── refactor/         # Safe refactoring workflow (behavior-preserving)
+│   │   └── refactor/         # Refactoring workflow (used by software-engineer)
 │   │       ├── SKILL.md
 │   │       └── references/techniques.md
-│   └── prompts/              # Slash-command prompt templates
+│   └── prompts/              # Slash-command templates (orchestrated)
 │       ├── review.md         # /review [staged|<PR-URL>|<files>]
 │       ├── refactor.md       # /refactor <file-or-dir>
 │       ├── feature.md        # /feature <description>
-│       ├── debug.md          # /debug <error-or-description>
-│       └── test.md           # /test [<file-or-feature>]
+│       ├── debug.md          # /debug <error>
+│       └── test.md           # /test [<file>]
 ├── templates/
-│   └── AGENTS.md             # Project-level AGENTS.md template (drop into project root)
+│   └── AGENTS.md             # Project-level template (drop into project root)
 ├── setup.sh                  # Installs everything into ~/.pi/agent/
 └── README.md
 ```
@@ -38,33 +74,39 @@ agentic-workflow/
 ### 1. Install
 
 ```bash
-git clone https://github.com/<your-username>/agentic-workflow.git
+git clone https://github.com/kenken17/agentic-workflow.git
 cd agentic-workflow
 ./setup.sh
 ```
 
-This copies everything into `~/.pi/agent/` (backing up any existing config first).
+This copies everything into `~/.pi/agent/` (backing up any existing config).
 
-### 2. Configure Your Provider
+### 2. Configure Providers
 
-Edit `~/.pi/agent/models.json` and set your provider's API key. Two options:
+Edit `~/.pi/agent/models.json` and set API keys. You can also set them as env vars:
 
-**Environment variable** (recommended):
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
-# or
-export OPENAI_API_KEY=sk-...
-# or
-export OPENCODE_GO_API_KEY=...
+export ANTHROPIC_API_KEY=***     # orchestrator + code-reviewer + devops
+export OPENAI_API_KEY=***          # software-engineer + test-engineer
+export GOOGLE_API_KEY=***       # frontend-developer
 ```
 
-**Or use /login in Pi** (subscription auth):
-```bash
-pi
-/login
-```
+Or use `/login` in Pi for subscription auth.
 
-Set your default provider and model in `~/.pi/agent/settings.json`:
+Alternative: use OpenRouter for all models — just set `OPENROUTER_API_KEY` and change model IDs in `sub-agents.json` to OpenRouter format.
+
+### 3. Configure Sub-Agents
+
+Edit `~/.pi/agent/sub-agents.json` to adjust:
+
+- **Models**: swap any sub-agent's model (e.g., use GPT-4o for frontend instead of Gemini)
+- **Personas**: tweak what each sub-agent specializes in
+- **Add/remove agents**: add new entries to the `agents` object
+
+### 4. Set Orchestrator Model
+
+Edit `~/.pi/agent/settings.json`:
+
 ```json
 {
   "defaultProvider": "anthropic",
@@ -72,37 +114,46 @@ Set your default provider and model in `~/.pi/agent/settings.json`:
 }
 ```
 
-### 3. Use It
+This is the model that routes tasks. Pick something fast and capable.
+
+### 5. Run
 
 ```bash
 cd /your/project
 pi
 ```
 
-## Skills
+## Sub-Agents
 
-### code-review
-Structured review workflow. Reviews staged changes, PR diffs, or specific files. Checks correctness, security, performance, maintainability, and testing. Outputs findings by severity with an APPROVE/REQUEST CHANGES/NEEDS DISCUSSION verdict.
+| Agent | Model | Specialty |
+|-------|-------|-----------|
+| `frontend-developer` | Google Gemini 2 Flash | UI/UX, React, CSS, responsive design, accessibility |
+| `software-engineer` | OpenAI o4-mini | Backend logic, algorithms, API design, general coding |
+| `code-reviewer` | Anthropic Claude Sonnet 4 | Code review — bugs, security, performance, style |
+| `devops-engineer` | Anthropic Claude Sonnet 4 | CI/CD, Docker, infrastructure, deployment |
+| `test-engineer` | OpenAI GPT-4o | Writing and running tests, coverage gaps |
 
-### feature-builder
-End-to-end feature building. Reads existing code, writes a plan, waits for confirmation, implements with TDD, verifies, and commits. Won't guess when scope is ambiguous — asks.
-
-### refactor
-Behavior-preserving refactoring. Establishes a test baseline, applies one technique at a time (extract function, rename, simplify conditionals, remove duplication), runs tests after each step.
+Run `/agents` inside Pi to see the list.
 
 ## Prompt Templates
 
-| Command | Usage |
-|---------|-------|
-| `/review` | Review uncommitted changes |
-| `/review staged` | Review staged changes only |
-| `/review <PR-URL>` | Review a GitHub PR diff |
-| `/review src/app.ts` | Review specific files |
-| `/refactor <file>` | Refactor a file or directory |
-| `/feature <description>` | Build a new feature |
-| `/debug <error>` | Systematically debug an issue |
-| `/test` | Run project tests |
-| `/test <file>` | Write tests for a file |
+| Command | What It Does |
+|---------|-------------|
+| `/review [staged\|<PR-URL>\|<files>]` | Orchestrator delegates to code-reviewer |
+| `/refactor <file>` | Orchestrator delegates to software-engineer |
+| `/feature <description>` | Orchestrator delegates to relevant sub-agents |
+| `/debug <error>` | Orchestrator delegates to software-engineer |
+| `/test [<file>]` | Orchestrator delegates to test-engineer |
+
+## How Delegation Works
+
+1. You give the orchestrator a task
+2. Orchestrator calls `delegate(agent="software-engineer", task="...")` 
+3. The sub-agent extension spawns: `pi -p --model openai/o4-mini "You are a senior software engineer... TASK: ..."`
+4. The sub-agent runs in print mode, does the work, returns output
+5. Orchestrator reviews output and either relays to you or delegates again
+
+The sub-agent has access to the same `read`, `write`, `edit`, `bash` tools in your project directory. It has no memory of the orchestrator's conversation — all context must be in the task description.
 
 ## Project-Level Customization
 
@@ -112,7 +163,26 @@ Copy `templates/AGENTS.md` to your project root as `AGENTS.md` and fill it with 
 cp templates/AGENTS.md /your/project/AGENTS.md
 ```
 
-Pi loads `AGENTS.md` from parent directories and the current directory at startup.
+Pi loads this on top of the global AGENTS.md at startup.
+
+## Customizing Sub-Agents
+
+Edit `~/.pi/agent/sub-agents.json`:
+
+```json
+{
+  "agents": {
+    "my-new-agent": {
+      "model": "openai/gpt-4o",
+      "label": "My Custom Agent",
+      "description": "What this agent does",
+      "persona": "You are a ..."
+    }
+  }
+}
+```
+
+The extension reads this file at startup. New agents appear in the `delegate` tool's enum automatically.
 
 ## License
 

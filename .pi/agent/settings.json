@@ -1,4 +1,7 @@
 {
+  "_comment": "Orchestrator settings. The orchestrator model is what routes tasks — pick a fast, cheap model. Sub-agent models are in sub-agents.json.",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-sonnet-4-20250514",
   "defaultThinkingLevel": "medium",
   "compaction": {
     "enabled": true,
@@ -17,5 +20,8 @@
   },
   "enableSkillCommands": true,
   "steeringMode": "one-at-a-time",
-  "followUpMode": "one-at-a-time"
+  "followUpMode": "one-at-a-time",
+  "extensions": [],
+  "skills": [],
+  "prompts": []
 }

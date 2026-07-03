@@ -22,16 +22,17 @@ fi
 mkdir -p "$PI_DIR"
 mkdir -p "$PI_DIR/skills"
 mkdir -p "$PI_DIR/prompts"
+mkdir -p "$PI_DIR/extensions"
 
-# --- Global AGENTS.md ---
-if [ -f "$PI_DIR/AGENTS.md" ]; then
-    echo "AGENTS.md already exists — skipping (review manually if needed)"
-else
-    cp "$SCRIPT_DIR/.pi/agent/AGENTS.md" "$PI_DIR/AGENTS.md"
-    echo "Installed: AGENTS.md"
-fi
+# --- Global AGENTS.md (Orchestrator instructions) ---
+cp "$SCRIPT_DIR/.pi/agent/AGENTS.md" "$PI_DIR/AGENTS.md"
+echo "Installed: AGENTS.md (orchestrator instructions)"
 
 # --- settings.json ---
+if [ -f "$PI_DIR/settings.json" ]; then
+    echo "settings.json already exists — backing up and overwriting"
+    cp "$PI_DIR/settings.json" "$PI_DIR/settings.json.bak"
+fi
 cp "$SCRIPT_DIR/.pi/agent/settings.json" "$PI_DIR/settings.json"
 echo "Installed: settings.json"
 
@@ -42,6 +43,18 @@ else
     cp "$SCRIPT_DIR/.pi/agent/models.json" "$PI_DIR/models.json"
     echo "Installed: models.json"
 fi
+
+# --- sub-agents.json (sub-agent roster) ---
+if [ -f "$PI_DIR/sub-agents.json" ]; then
+    echo "sub-agents.json already exists — skipping (edit manually to add agents)"
+else
+    cp "$SCRIPT_DIR/.pi/agent/sub-agents.json" "$PI_DIR/sub-agents.json"
+    echo "Installed: sub-agents.json"
+fi
+
+# --- Extension: sub-agent.ts ---
+cp "$SCRIPT_DIR/.pi/agent/extensions/sub-agent.ts" "$PI_DIR/extensions/sub-agent.ts"
+echo "Installed: extensions/sub-agent.ts"
 
 # --- Skills ---
 for skill_dir in "$SCRIPT_DIR"/.pi/agent/skills/*/; do
@@ -63,10 +76,18 @@ echo ""
 echo "=== Done ==="
 echo ""
 echo "Next steps:"
-echo "  1. Edit $PI_DIR/models.json to configure your providers and API keys"
-echo "  2. Set API keys as environment variables or use /login in pi"
-echo "  3. Optional: Copy templates/AGENTS.md to your project root as AGENTS.md"
-echo "     and fill it with project-specific instructions"
-echo "  4. Rename 'git' remote: Uncomment GITHUB_TOKEN temporarily if loading models.json needs it"
+echo "  1. Edit $PI_DIR/models.json to configure your provider API keys"
+echo "  2. Edit $PI_DIR/sub-agents.json to adjust sub-agent models and personas"
+echo "  3. Set API keys as environment variables:"
+echo "     export ANTHROPIC_API_KEY=***     echo "     export OPENAI_API_KEY=***=***"
+echo "     export GOOGLE_API_KEY=*** default model in $PI_DIR/settings.json (currently anthropic/claude-sonnet-4)"
+echo "     This is the orchestrator model — pick a fast, capable model for routing"
+echo "  5. Optional: Copy templates/AGENTS.md to your project root"
+echo "  6. Run: pi"
 echo ""
-echo "To start pi with this config, run: pi"
+echo "Sub-agents available:"
+echo "  frontend-developer  → Google Gemini 2 Flash"
+echo "  software-engineer   → OpenAI o4-mini"
+echo "  code-reviewer       → Anthropic Claude Sonnet 4"
+echo "  devops-engineer     → Anthropic Claude Sonnet 4"
+echo "  test-engineer       → OpenAI GPT-4o"
