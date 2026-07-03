@@ -1,0 +1,56 @@
+{
+  "_comment": "Edit this file to add your providers/models. Pi loads it from ~/.pi/agent/models.json. See https://pi.dev/docs/latest for full config reference.",
+  "providers": {
+    "opencode-go": {
+      "_comment": "Example: OpenCode Go provider (minimax-m2.7). Uncomment and set API key to use.",
+      "baseUrl": "https://opencode.ai/zen/go/v1",
+      "api": "openai-completions",
+      "apiKey": "$OPENCODE_GO_API_KEY",
+      "models": [
+        {
+          "id": "minimax-m2.7",
+          "name": "MiniMax M2.7 (OpenCode Go)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 200000,
+          "maxTokens": 16384,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    },
+    "anthropic": {
+      "_comment": "Built-in Anthropic provider. Set ANTHROPIC_API_KEY env var or use /login. Override baseUrl or add custom models here.",
+      "apiKey": "$ANTHROPIC_API_KEY"
+    },
+    "openai": {
+      "_comment": "Built-in OpenAI provider. Set OPENAI_API_KEY env var or use /login.",
+      "apiKey": "$OPENAI_API_KEY"
+    },
+    "openrouter": {
+      "_comment": "OpenRouter — access many models via one API. Set OPENROUTER_API_KEY.",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "api": "openai-completions",
+      "apiKey": "$OPENROUTER_API_KEY",
+      "models": [
+        {
+          "id": "anthropic/claude-sonnet-4",
+          "name": "Claude Sonnet 4 (OpenRouter)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 200000,
+          "maxTokens": 16384,
+          "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 }
+        },
+        {
+          "id": "openai/gpt-4o",
+          "name": "GPT-4o (OpenRouter)",
+          "reasoning": false,
+          "input": ["text", "image"],
+          "contextWindow": 128000,
+          "maxTokens": 16384,
+          "cost": { "input": 2.5, "output": 10, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
+}

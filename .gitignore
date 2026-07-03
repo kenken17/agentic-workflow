@@ -1,0 +1,7 @@
+# Sessions and local state
+.pi/sessions/
+*.session
+
+# OS junk
+.DS_Store
+Thumbs.db
