@@ -52,9 +52,11 @@ else
     echo "Installed: sub-agents.json"
 fi
 
-# --- Extension: sub-agent.ts ---
+# --- Extensions ---
 cp "$SCRIPT_DIR/.pi/agent/extensions/sub-agent.ts" "$PI_DIR/extensions/sub-agent.ts"
 echo "Installed: extensions/sub-agent.ts"
+cp "$SCRIPT_DIR/.pi/agent/extensions/team-roster.ts" "$PI_DIR/extensions/team-roster.ts"
+echo "Installed: extensions/team-roster.ts"
 
 # --- Skills ---
 for skill_dir in "$SCRIPT_DIR"/.pi/agent/skills/*/; do

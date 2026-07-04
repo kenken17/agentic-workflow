@@ -45,7 +45,8 @@ agentic-workflow/
 │   ├── models.json           # Provider config (Anthropic, OpenAI, Google, OpenRouter)
 │   ├── sub-agents.json       # Sub-agent roster (models, personas — edit this!)
 │   ├── extensions/
-│   │   └── sub-agent.ts      # Extension registering the "delegate" tool
+│   │   ├── sub-agent.ts      # Extension registering the "delegate" tool
+│   │   └── team-roster.ts    # Extension registering "team_roster" tool + /team, /team-detail commands
 │   ├── skills/
 │   │   ├── code-review/      # Code review workflow (used by code-reviewer)
 │   │   │   ├── SKILL.md
@@ -133,7 +134,30 @@ pi
 | `devops-engineer` | Anthropic Claude Sonnet 4 | CI/CD, Docker, infrastructure, deployment |
 | `test-engineer` | OpenAI GPT-4o | Writing and running tests, coverage gaps |
 
-Run `/agents` inside Pi to see the list.
+Run `/team` inside Pi for a compact table view of all agents and their models, or `/team-detail` for full details including personas. The `/agents` command (from the sub-agent extension) also works.
+
+### Team Roster Extension
+
+The `team-roster.ts` extension provides:
+
+- **`/team`** — Compact table showing all agents, their models, and providers
+- **`/team-detail`** — Detailed view with full persona text for each agent
+- **`team_roster` tool** — Call from the orchestrator to programmatically query the roster (pass `detailed: true` for personas)
+
+Example `/team` output:
+```
+┌──────────────────────────────────────────────────┐
+│ TEAM ROSTER                                      │
+├──────────────────────────────────────────────────┤
+│ Agent              │ Model           │ Provider  │
+├──────────────────────────────────────────────────┤
+│ frontend-developer │ gemini-2-flash  │ Google    │
+│ software-engineer  │ o4-mini         │ OpenAI    │
+│ code-reviewer      │ claude-sonnet-4 │ Anthropic │
+│ devops-engineer    │ claude-sonnet-4 │ Anthropic │
+│ test-engineer      │ gpt-4o          │ OpenAI    │
+└──────────────────────────────────────────────────┘
+```
 
 ## Prompt Templates
 

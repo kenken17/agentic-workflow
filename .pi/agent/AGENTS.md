@@ -22,7 +22,7 @@ Use the `delegate` tool with the `agent` parameter:
 | `devops-engineer` | CI/CD, Docker, infrastructure, deployment | Anthropic Claude Sonnet 4 |
 | `test-engineer` | Writing and running tests, test coverage | OpenAI GPT-4o |
 
-Run `/agents` to see this list at any time.
+Run `/team` for a compact table of all agents and their models, or `/team-detail` for full details. `/agents` also works.
 
 ## Delegation Rules
 
