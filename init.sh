@@ -7,7 +7,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-
 SCRIPT_DIR="${SCRIPT_DIR%%[[:space:]]*}"
 
 # ─── Colors ───
@@ -74,7 +73,7 @@ echo "Which providers do you want to configure? (Enter numbers, comma-separated)
 echo -e "  ${DIM}1${RESET}  Anthropic  ${DIM}(orchestrator + code-reviewer + devops)${RESET}"
 echo -e "  ${DIM}2${RESET}  OpenAI     ${DIM}(software-engineer + test-engineer)${RESET}"
 echo -e "  ${DIM}3${RESET}  Google     ${DIM}(frontend-developer)${RESET}"
-echo -e "  ${DIM}4${RESET}  OpenRouter ${DIM}(all models via one API — alternative to above)${RESET}"
+echo -e "  ${DIM}4${RESET}  OpenRouter ${DIM}(all models via one API — replaces 1-3)${RESET}"
 echo -e "  ${DIM}5${RESET}  Skip (use /login in Pi instead)${RESET}"
 echo ""
 read -r -p "Providers [1,2,3]: " PROVIDER_CHOICES
@@ -90,50 +89,11 @@ has_provider() {
     echo "$PROVIDER_CHOICES" | grep -q "$1"
 }
 
-# Anthropic
-if has_provider "1"; then
-    echo ""
-    echo -e "${BOLD}Anthropic API Key:${RESET} ${DIM}(get from console.anthropic.com)${RESET}"
-    read -r -s -p "> " ANTHROPIC_KEY
-    echo ""
-    if [ -n "$ANTHROPIC_KEY" ]; then
-        echo "ANTHROPIC_API_KEY=$ANTHROPIC_KEY" >>"$ENV_FILE"
-        echo -e "  ${GREEN}✓${RESET} Anthropic configured"
-    else
-        echo -e "  ${YELLOW}⚠${RESET} Skipped (no key entered) — set ANTHROPIC_API_KEY later"
-    fi
-fi
-
-# OpenAI
-if has_provider "2"; then
-    echo ""
-    echo -e "${BOLD}OpenAI API Key:${RESET} ${DIM}(get from platform.openai.com)${RESET}"
-    read -r -s -p "> " OPENAI_KEY
-    echo ""
-    if [ -n "$OPENAI_KEY" ]; then
-        echo "OPENAI_API_KEY=$OPENAI_KEY" >>"$ENV_FILE"
-        echo -e "  ${GREEN}✓${RESET} OpenAI configured"
-    else
-        echo -e "  ${YELLOW}⚠${RESET} Skipped (no key entered) — set OPENAI_API_KEY later"
-    fi
-fi
-
-# Google
-if has_provider "3"; then
-    echo ""
-    echo -e "${BOLD}Google API Key:${RESET} ${DIM}(get from aistudio.google.com)${RESET}"
-    read -r -s -p "> " GOOGLE_KEY
-    echo ""
-    if [ -n "$GOOGLE_KEY" ]; then
-        echo "GOOGLE_API_KEY=$GOOGLE_KEY" >>"$ENV_FILE"
-        echo -e "  ${GREEN}✓${RESET} Google configured"
-    else
-        echo -e "  ${YELLOW}⚠${RESET} Skipped (no key entered) — set GOOGLE_API_KEY later"
-    fi
-fi
+USE_OPENROUTER=false
 
 # OpenRouter (replaces all direct providers)
 if has_provider "4"; then
+    USE_OPENROUTER=true
     echo ""
     echo -e "${BOLD}OpenRouter API Key:${RESET} ${DIM}(get from openrouter.ai)${RESET}"
     read -r -s -p "> " OPENROUTER_KEY
@@ -141,15 +101,59 @@ if has_provider "4"; then
     if [ -n "$OPENROUTER_KEY" ]; then
         echo "OPENROUTER_API_KEY=$OPENROUTER_KEY" >>"$ENV_FILE"
         echo -e "  ${GREEN}✓${RESET} OpenRouter configured"
-        echo -e "  ${YELLOW}⚠${RESET} You'll need to update .pi/sub-agents.json to use openrouter/ model IDs"
     else
         echo -e "  ${YELLOW}⚠${RESET} Skipped (no key entered)"
+        USE_OPENROUTER=false
+    fi
+fi
+
+# Direct providers (only if OpenRouter not selected)
+if [ "$USE_OPENROUTER" = false ]; then
+    # Anthropic
+    if has_provider "1"; then
+        echo ""
+        echo -e "${BOLD}Anthropic API Key:${RESET} ${DIM}(get from console.anthropic.com)${RESET}"
+        read -r -s -p "> " ANTHROPIC_KEY
+        echo ""
+        if [ -n "$ANTHROPIC_KEY" ]; then
+            echo "ANTHROPIC_API_KEY=$ANTHROPIC_KEY" >>"$ENV_FILE"
+            echo -e "  ${GREEN}✓${RESET} Anthropic configured"
+        else
+            echo -e "  ${YELLOW}⚠${RESET} Skipped (no key entered) — set ANTHROPIC_API_KEY later"
+        fi
+    fi
+
+    # OpenAI
+    if has_provider "2"; then
+        echo ""
+        echo -e "${BOLD}OpenAI API Key:${RESET} ${DIM}(get from platform.openai.com)${RESET}"
+        read -r -s -p "> " OPENAI_KEY
+        echo ""
+        if [ -n "$OPENAI_KEY" ]; then
+            echo "OPENAI_API_KEY=$OPENAI_KEY" >>"$ENV_FILE"
+            echo -e "  ${GREEN}✓${RESET} OpenAI configured"
+        else
+            echo -e "  ${YELLOW}⚠${RESET} Skipped (no key entered) — set OPENAI_API_KEY later"
+        fi
+    fi
+
+    # Google
+    if has_provider "3"; then
+        echo ""
+        echo -e "${BOLD}Google API Key:${RESET} ${DIM}(get from aistudio.google.com)${RESET}"
+        read -r -s -p "> " GOOGLE_KEY
+        echo ""
+        if [ -n "$GOOGLE_KEY" ]; then
+            echo "GOOGLE_API_KEY=$GOOGLE_KEY" >>"$ENV_FILE"
+            echo -e "  ${GREEN}✓${RESET} Google configured"
+        else
+            echo -e "  ${YELLOW}⚠${RESET} Skipped (no key entered) — set GOOGLE_API_KEY later"
+        fi
     fi
 fi
 
 # Add .env to .gitignore if not already there
 if ! grep -q "^\.env$" "$PROJECT_DIR/.gitignore" 2>/dev/null; then
-    # Ensure file ends with newline before appending
     [ -s "$PROJECT_DIR/.gitignore" ] && [ "$(tail -c1 "$PROJECT_DIR/.gitignore" 2>/dev/null)" != $'\n' ] && echo "" >>"$PROJECT_DIR/.gitignore"
     echo ".env" >>"$PROJECT_DIR/.gitignore"
 fi
@@ -157,38 +161,31 @@ fi
 echo ""
 
 # ─── 4. Orchestrator Model ───
-echo -e "${BOLD}${CYAN}═══ Orchestrator Model ═══${RESET}"
-echo "The orchestrator routes tasks to sub-agents. Pick a fast, capable model:"
-echo -e "  ${DIM}1${RESET}  Anthropic Claude Sonnet 4  ${DIM}(default)${RESET}"
-echo -e "  ${DIM}2${RESET}  OpenAI GPT-4o"
-echo -e "  ${DIM}3${RESET}  Google Gemini 2 Flash"
-echo -e "  ${DIM}4${RESET}  Custom (enter provider/model manually)"
-echo ""
-read -r -p "Choice [1]: " ORCH_CHOICE
-
-case "$ORCH_CHOICE" in
-    2)
-        ORCH_PROVIDER="openai"
-        ORCH_MODEL="gpt-4o"
-        ;;
-    3)
-        ORCH_PROVIDER="google"
-        ORCH_MODEL="gemini-2-flash"
-        ;;
-    4)
-        read -r -p "Provider: " ORCH_PROVIDER
-        read -r -p "Model: " ORCH_MODEL
-        ;;
-    *)
-        ORCH_PROVIDER="anthropic"
-        ORCH_MODEL="claude-sonnet-4-20250514"
-        ;;
-esac
-
-# Patch settings.json
 SETTINGS_FILE="$PROJECT_DIR/.pi/settings.json"
-if command -v python3 &>/dev/null; then
-    python3 -c "
+SUBAGENTS_FILE="$PROJECT_DIR/.pi/sub-agents.json"
+
+# Helper: patch a JSON file using python3 or node
+patch_json() {
+    local file="$1"
+    local script="$2"
+    if command -v python3 &>/dev/null; then
+        python3 -c "$script" 2>/dev/null && return 0
+    elif command -v node &>/dev/null; then
+        node -e "$script" 2>/dev/null && return 0
+    fi
+    return 1
+}
+
+if [ "$USE_OPENROUTER" = true ]; then
+    # ── OpenRouter: auto-configure everything, no user input ──
+    echo -e "${BOLD}${CYAN}═══ Orchestrator Model ═══${RESET}"
+    echo -e "  ${DIM}OpenRouter selected — configuring automatically${RESET}"
+
+    ORCH_PROVIDER="openrouter"
+    ORCH_MODEL="anthropic/claude-sonnet-4"
+
+    # Patch settings.json
+    patch_json "$SETTINGS_FILE" "
 import json
 with open('$SETTINGS_FILE', 'r') as f:
     s = json.load(f)
@@ -196,19 +193,64 @@ s['defaultProvider'] = '$ORCH_PROVIDER'
 s['defaultModel'] = '$ORCH_MODEL'
 with open('$SETTINGS_FILE', 'w') as f:
     json.dump(s, f, indent=2)
-" 2>/dev/null && echo -e "  ${GREEN}✓${RESET} Orchestrator set to ${BOLD}$ORCH_PROVIDER/$ORCH_MODEL${RESET}" ||
-        echo -e "  ${YELLOW}⚠${RESET} Could not patch settings.json — edit manually"
-elif command -v node &>/dev/null; then
-    node -e "
-const fs = require('fs');
-const s = JSON.parse(fs.readFileSync('$SETTINGS_FILE', 'utf-8'));
-s.defaultProvider = '$ORCH_PROVIDER';
-s.defaultModel = '$ORCH_MODEL';
-fs.writeFileSync('$SETTINGS_FILE', JSON.stringify(s, null, 2));
-" 2>/dev/null && echo -e "  ${GREEN}✓${RESET} Orchestrator set to ${BOLD}$ORCH_PROVIDER/$ORCH_MODEL${RESET}" ||
-        echo -e "  ${YELLOW}⚠${RESET} Could not patch settings.json — edit manually"
+" && echo -e "  ${GREEN}✓${RESET} Orchestrator set to ${BOLD}$ORCH_PROVIDER/$ORCH_MODEL${RESET}" \
+      || echo -e "  ${YELLOW}⚠${RESET} Could not patch settings.json — edit manually"
+
+    # Patch sub-agents.json: prefix all models with openrouter/
+    patch_json "$SUBAGENTS_FILE" "
+import json
+with open('$SUBAGENTS_FILE', 'r') as f:
+    s = json.load(f)
+for name, agent in s.get('agents', {}).items():
+    m = agent.get('model', '')
+    if not m.startswith('openrouter/'):
+        agent['model'] = 'openrouter/' + m
+with open('$SUBAGENTS_FILE', 'w') as f:
+    json.dump(s, f, indent=2)
+" && echo -e "  ${GREEN}✓${RESET} Sub-agents updated to OpenRouter model IDs" \
+      || echo -e "  ${YELLOW}⚠${RESET} Could not patch sub-agents.json — edit manually"
+
 else
-    echo -e "  ${YELLOW}⚠${RESET} No python3/node — edit .pi/settings.json manually"
+    # ── Direct providers: let user pick orchestrator model ──
+    echo -e "${BOLD}${CYAN}═══ Orchestrator Model ═══${RESET}"
+    echo "The orchestrator routes tasks to sub-agents. Pick a fast, capable model:"
+    echo -e "  ${DIM}1${RESET}  Anthropic Claude Sonnet 4  ${DIM}(default)${RESET}"
+    echo -e "  ${DIM}2${RESET}  OpenAI GPT-4o"
+    echo -e "  ${DIM}3${RESET}  Google Gemini 2 Flash"
+    echo -e "  ${DIM}4${RESET}  Custom (enter provider/model manually)"
+    echo ""
+    read -r -p "Choice [1]: " ORCH_CHOICE
+
+    case "$ORCH_CHOICE" in
+        2)
+            ORCH_PROVIDER="openai"
+            ORCH_MODEL="gpt-4o"
+            ;;
+        3)
+            ORCH_PROVIDER="google"
+            ORCH_MODEL="gemini-2-flash"
+            ;;
+        4)
+            read -r -p "Provider: " ORCH_PROVIDER
+            read -r -p "Model: " ORCH_MODEL
+            ;;
+        *)
+            ORCH_PROVIDER="anthropic"
+            ORCH_MODEL="claude-sonnet-4-20250514"
+            ;;
+    esac
+
+    # Patch settings.json
+    patch_json "$SETTINGS_FILE" "
+import json
+with open('$SETTINGS_FILE', 'r') as f:
+    s = json.load(f)
+s['defaultProvider'] = '$ORCH_PROVIDER'
+s['defaultModel'] = '$ORCH_MODEL'
+with open('$SETTINGS_FILE', 'w') as f:
+    json.dump(s, f, indent=2)
+" && echo -e "  ${GREEN}✓${RESET} Orchestrator set to ${BOLD}$ORCH_PROVIDER/$ORCH_MODEL${RESET}" \
+      || echo -e "  ${YELLOW}⚠${RESET} Could not patch settings.json — edit manually"
 fi
 echo ""
 
@@ -254,6 +296,7 @@ echo -e "${BOLD}${GREEN}══════════════════�
 echo ""
 echo -e "${BOLD}Location:${RESET}  $PROJECT_DIR"
 echo -e "${BOLD}Config:${RESET}    .pi/ (project-level — isolated to this project)"
+echo -e "${BOLD}Provider:${RESET}  ${BOLD}$ORCH_PROVIDER${RESET}"
 echo ""
 echo -e "${BOLD}What's inside:${RESET}"
 echo -e "  ${DIM}•${RESET} AGENTS.md          — Orchestrator instructions"
@@ -268,11 +311,19 @@ if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
 fi
 echo ""
 echo -e "${BOLD}Sub-agents:${RESET}"
-echo -e "  frontend-developer  → Google Gemini 2 Flash"
-echo -e "  software-engineer   → OpenAI o4-mini"
-echo -e "  code-reviewer       → Anthropic Claude Sonnet 4"
-echo -e "  devops-engineer     → Anthropic Claude Sonnet 4"
-echo -e "  test-engineer       → OpenAI GPT-4o"
+if [ "$USE_OPENROUTER" = true ]; then
+    echo -e "  frontend-developer  → openrouter/google/gemini-2-flash"
+    echo -e "  software-engineer   → openrouter/openai/o4-mini"
+    echo -e "  code-reviewer       → openrouter/anthropic/claude-sonnet-4"
+    echo -e "  devops-engineer     → openrouter/anthropic/claude-sonnet-4"
+    echo -e "  test-engineer       → openrouter/openai/gpt-4o"
+else
+    echo -e "  frontend-developer  → Google Gemini 2 Flash"
+    echo -e "  software-engineer   → OpenAI o4-mini"
+    echo -e "  code-reviewer       → Anthropic Claude Sonnet 4"
+    echo -e "  devops-engineer     → Anthropic Claude Sonnet 4"
+    echo -e "  test-engineer       → OpenAI GPT-4o"
+fi
 echo ""
 echo -e "${BOLD}Next steps:${RESET}"
 echo -e "  ${CYAN}cd${RESET} $PROJECT_DIR"
