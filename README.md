@@ -1,8 +1,8 @@
 # Agentic Workflow for Pi
 
-A multi-agent orchestration workflow for [Pi](https://pi.dev) — the terminal-based coding agent.
+A self-contained, project-level multi-agent orchestration config for [Pi](https://pi.dev) — the terminal-based coding agent by Earendil Inc.
 
-The default Pi acts as an **orchestrator**. It never writes code itself. It delegates to specialized sub-agents, each with its own model and persona.
+No global install. No `~/.pi/agent/` pollution. Everything lives inside your project's `.pi/` directory. Run `init.sh` to create a new project, or copy the files manually.
 
 ## Architecture
 
@@ -11,7 +11,7 @@ USER
   │
   ▼
 PI (ORCHESTRATOR)
-  │  model: Anthropic Claude Sonnet 4 (configurable)
+  │  model: Anthropic Claude Sonnet 4 (configurable in .pi/settings.json)
   │  role: understand intent, break into tasks, delegate, review, relay
   │
   ├── delegate("frontend-developer", task)
@@ -39,14 +39,13 @@ PI (ORCHESTRATOR)
 
 ```
 agentic-workflow/
-├── .pi/agent/
-│   ├── AGENTS.md              # Orchestrator instructions — delegate, never code
+├── .pi/
 │   ├── settings.json         # Pi settings (orchestrator model, compaction, retry)
 │   ├── models.json           # Provider config (Anthropic, OpenAI, Google, OpenRouter)
 │   ├── sub-agents.json       # Sub-agent roster (models, personas — edit this!)
 │   ├── extensions/
 │   │   ├── sub-agent.ts      # Extension registering the "delegate" tool
-│   │   └── team-roster.ts    # Extension registering "team_roster" tool + /team, /team-detail commands
+│   │   └── team-roster.ts    # Extension registering "team_roster" tool + /team, /team-detail
 │   ├── skills/
 │   │   ├── code-review/      # Code review workflow (used by code-reviewer)
 │   │   │   ├── SKILL.md
@@ -64,49 +63,70 @@ agentic-workflow/
 │       ├── feature.md        # /feature <description>
 │       ├── debug.md          # /debug <error>
 │       └── test.md           # /test [<file>]
+├── AGENTS.md                 # Orchestrator instructions — delegate, never code
 ├── templates/
-│   └── AGENTS.md             # Project-level template (drop into project root)
-├── setup.sh                  # Installs everything into ~/.pi/agent/
+│   └── AGENTS.md             # Project-level template (for your actual projects)
+├── init.sh                   # Interactive scaffolder: creates project, configures keys, ready to run
 └── README.md
 ```
 
 ## Quick Start
 
-### 1. Install
+### Create a new project (recommended)
 
 ```bash
-git clone https://github.com/kenken17/agentic-workflow.git
-cd agentic-workflow
-./setup.sh
+git clone https://github.com/kenken17/agentic-workflow.git /tmp/awf
+/tmp/awf/init.sh my-app
 ```
 
-This copies everything into `~/.pi/agent/` (backing up any existing config).
+`init.sh` is an interactive wizard that:
+1. Creates the project directory
+2. Copies `.pi/` (settings, models, sub-agents, extensions, skills, prompts) and `AGENTS.md`
+3. Asks which providers you want (Anthropic, OpenAI, Google, OpenRouter) and collects API keys
+4. Writes keys to `.env` (gitignored)
+5. Lets you pick the orchestrator model
+6. Optionally adds a project description to `AGENTS.md`
+7. Initializes git
 
-### 2. Configure Providers
-
-Edit `~/.pi/agent/models.json` and set API keys. You can also set them as env vars:
+When it's done:
 
 ```bash
+cd my-app
+source .env    # load API keys into shell
+pi             # start coding with your agent team
+```
+
+### Manual copy (skip the wizard)
+
+```bash
+git clone https://github.com/kenken17/agentic-workflow.git /tmp/awf
+cp -r /tmp/awf/.pi /your/project/
+cp /tmp/awf/AGENTS.md /your/project/
+cd /your/project
+
+# Set API keys
 export ANTHROPIC_API_KEY=***     # orchestrator + code-reviewer + devops
-export OPENAI_API_KEY=***          # software-engineer + test-engineer
-export GOOGLE_API_KEY=***       # frontend-developer
+export OPENAI_API_KEY=***        # software-engineer + test-engineer
+export GOOGLE_API_KEY=***        # frontend-developer
+
+pi
 ```
 
-Or use `/login` in Pi for subscription auth.
+Or use `/login` in Pi for subscription auth instead of env vars.
 
-Alternative: use OpenRouter for all models — just set `OPENROUTER_API_KEY` and change model IDs in `sub-agents.json` to OpenRouter format.
+Alternative: use OpenRouter for all models — set `OPENROUTER_API_KEY` and change model IDs in `.pi/sub-agents.json` to OpenRouter format.
 
-### 3. Configure Sub-Agents
+### Configure Sub-Agents
 
-Edit `~/.pi/agent/sub-agents.json` to adjust:
+Edit `.pi/sub-agents.json` to adjust:
 
 - **Models**: swap any sub-agent's model (e.g., use GPT-4o for frontend instead of Gemini)
 - **Personas**: tweak what each sub-agent specializes in
 - **Add/remove agents**: add new entries to the `agents` object
 
-### 4. Set Orchestrator Model
+### Set Orchestrator Model
 
-Edit `~/.pi/agent/settings.json`:
+Edit `.pi/settings.json`:
 
 ```json
 {
@@ -117,7 +137,7 @@ Edit `~/.pi/agent/settings.json`:
 
 This is the model that routes tasks. Pick something fast and capable.
 
-### 5. Run
+### Run
 
 ```bash
 cd /your/project
@@ -134,7 +154,7 @@ pi
 | `devops-engineer` | Anthropic Claude Sonnet 4 | CI/CD, Docker, infrastructure, deployment |
 | `test-engineer` | OpenAI GPT-4o | Writing and running tests, coverage gaps |
 
-Run `/team` inside Pi for a compact table view of all agents and their models, or `/team-detail` for full details including personas. The `/agents` command (from the sub-agent extension) also works.
+Run `/team` inside Pi for a compact table view of all agents and their models, or `/team-detail` for full details including personas.
 
 ### Team Roster Extension
 
@@ -181,17 +201,13 @@ The sub-agent has access to the same `read`, `write`, `edit`, `bash` tools in yo
 
 ## Project-Level Customization
 
-Copy `templates/AGENTS.md` to your project root as `AGENTS.md` and fill it with project-specific info:
+This repo IS the project-level config. The `AGENTS.md` at the root contains the orchestrator instructions. The `.pi/` directory contains all the Pi config.
 
-```bash
-cp templates/AGENTS.md /your/project/AGENTS.md
-```
-
-Pi loads this on top of the global AGENTS.md at startup.
+Each project gets its own isolated config. Copy `.pi/` and `AGENTS.md` into each project. Each can have different sub-agents, models, or personas in `sub-agents.json`.
 
 ## Customizing Sub-Agents
 
-Edit `~/.pi/agent/sub-agents.json`:
+Edit `.pi/sub-agents.json`:
 
 ```json
 {
@@ -206,7 +222,7 @@ Edit `~/.pi/agent/sub-agents.json`:
 }
 ```
 
-The extension reads this file at startup. New agents appear in the `delegate` tool's enum automatically.
+The extension reads this file at startup from `.pi/sub-agents.json` (project-local, preferred) or `~/.pi/agent/sub-agents.json` (global fallback). New agents appear in the `delegate` tool's enum automatically.
 
 ## License
 
