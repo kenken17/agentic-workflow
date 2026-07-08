@@ -51,30 +51,62 @@ function formatDuration(ms: number): string {
 }
 
 function buildStatusReport(): string {
-  const lines: string[] = ["", "=== DELEGATE STATUS ===", ""];
+  const lines: string[] = [];
 
-  // Active
-  if (activeDelegates.size === 0) {
-    lines.push("No active delegates.");
-  } else {
-    lines.push(`Active delegates (${activeDelegates.size}):`);
-    lines.push("");
-    for (const [id, d] of activeDelegates.entries()) {
-      lines.push(`  [${d.agent}] ${d.taskPreview.slice(0, 80)}`);
-      lines.push(`    running for ${formatDuration(Date.now() - d.startTime)}`);
-      lines.push("");
+  // Header
+  lines.push("┌──────────────────────────────────────────────────────────────────────────┐");
+  lines.push("│ AGENT STATUS                                      │");
+  lines.push("├──────────────────────────────────────────────────────────────────────────┤");
+
+  // Build per-agent status
+  const agentStatus = new Map<string, { state: "live" | "idle"; tasks: string[]; elapsed: number }>();
+  for (const [id, d] of activeDelegates.entries()) {
+    const s = agentStatus.get(d.agent) || { state: "idle" as const, tasks: [], elapsed: 0 };
+    s.state = "live";
+    s.tasks.push(d.taskPreview.slice(0, 40));
+    s.elapsed = Math.max(s.elapsed, Date.now() - d.startTime);
+    agentStatus.set(d.agent, s);
+  }
+
+  // Get all configured agents so idle ones show too
+  const configPath = findConfigPath();
+  let allAgents: Record<string, AgentConfig> = {};
+  if (configPath) {
+    try {
+      const raw = readFileSync(configPath, "utf-8");
+      allAgents = JSON.parse(raw).agents || {};
+    } catch {}
+  }
+
+  for (const [name, cfg] of Object.entries(allAgents)) {
+    const s = agentStatus.get(name);
+    if (s && s.state === "live") {
+      const badge = "🔴 LIVE";
+      const elapsed = formatDuration(s.elapsed);
+      lines.push(`│ ${badge.padEnd(8)} ${(cfg.label || name).slice(0, 18).padEnd(18)} ${elapsed.padStart(10)} │`);
+      for (const task of s.tasks.slice(0, 2)) {
+        lines.push(`│          → ${task.slice(0, 55).padEnd(55)} │`);
+      }
+    } else {
+      const badge = "⚪ IDLE";
+      lines.push(`│ ${badge.padEnd(8)} ${(cfg.label || name).slice(0, 18).padEnd(18)} ${"".padStart(10)} │`);
     }
   }
 
-  // History
+  if (Object.keys(allAgents).length === 0) {
+    lines.push(`│ (no agents configured)                              │`);
+  }
+
+  lines.push("└──────────────────────────────────────────────────────────────────────────┘");
+
+  // Recent history
   if (delegateHistory.length > 0) {
-    lines.push(`Recent history (last ${delegateHistory.length}):`);
     lines.push("");
+    lines.push("📋 Recent activity (last 10):");
     for (const h of delegateHistory.slice(0, 10)) {
-      const icon = h.status === "ok" ? "✓" : h.status === "aborted" ? "×" : "⚠";
-      lines.push(`  ${icon} [${h.agent}] ${h.taskPreview.slice(0, 80)} (${formatDuration(h.endTime - h.startTime)})`);
+      const icon = h.status === "ok" ? "✅" : h.status === "aborted" ? "❌" : "⚠️";
+      lines.push(`  ${icon} [${h.agent}] ${h.taskPreview.slice(0, 60)} (${formatDuration(h.endTime - h.startTime)})`);
     }
-    lines.push("");
   }
 
   return lines.join("\n");
@@ -116,7 +148,6 @@ export default function (pi: ExtensionAPI) {
     return;
   }
 
-  // Build a summary of available agents for the tool description
   const agentSummary = agentNames
     .map((name) => `  - ${name}: ${config.agents[name].description}`)
     .join("\n");
@@ -124,20 +155,19 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: "delegate",
     label: "Delegate to Sub-Agent",
-    description: `Delegate a task to a specialized sub-agent. Each sub-agent has its own model and persona. Available agents:\n${agentSummary}\n\nThe sub-agent runs in print mode (pi -p) with its configured model and returns the result. Use this for ALL coding work — do not write code yourself.`,
+    description: `Delegate a task to a specialized sub-agent. Available agents:\n${agentSummary}\n\nThe sub-agent runs in print mode (pi -p) with its configured model and returns the result.`,
     promptSnippet: "Delegate tasks to specialized sub-agents (each with its own model)",
     promptGuidelines: [
       "Use delegate for ALL coding work — never write or edit code files yourself.",
-      "Use delegate for code review, feature building, refactoring, debugging, testing, and DevOps work.",
-      "Choose the sub-agent that best matches the task: frontend-developer for UI, software-engineer for backend/logic, code-reviewer for review, devops-engineer for CI/CD, test-engineer for tests.",
-      "When delegating, include all necessary context in the task description — the sub-agent has no memory of the conversation.",
+      "When delegating, include all necessary context in the task description.",
+      "Choose the sub-agent that best matches the task.",
     ],
     parameters: Type.Object({
       agent: StringEnum(agentNames as [string, ...string[]], {
         description: "Which sub-agent to delegate to",
       }),
       task: Type.String({
-        description: "The full task description. Include all context the sub-agent needs — file paths, requirements, constraints, relevant code snippets. The sub-agent has no memory of the current conversation.",
+        description: "The full task description. The sub-agent has no memory of the current conversation.",
       }),
     }),
 
@@ -153,19 +183,15 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      // Track this delegate
       addActive(toolCallId, params.agent, params.task);
 
-      // Notify that delegation is starting
       onUpdate?.({
         content: [{
           type: "text",
-          text: `Delegating to ${agentConfig.label} (${agentConfig.model})...`,
+          text: `🔴 [${agentConfig.label}] Starting...`,
         }],
       });
 
-      // Build the full prompt: persona + task
-      // Include cwd so the sub-agent knows where it's working
       const fullPrompt = [
         agentConfig.persona,
         "",
@@ -175,7 +201,6 @@ export default function (pi: ExtensionAPI) {
         params.task,
       ].join("\n");
 
-      // Spawn pi in print mode with the specified model
       const result = await new Promise<string>((resolvePromise, reject) => {
         const proc = spawn("pi", ["-p", "--model", agentConfig.model, fullPrompt], {
           cwd: ctx.cwd,
@@ -188,7 +213,6 @@ export default function (pi: ExtensionAPI) {
 
         proc.stdout.on("data", (data) => {
           stdout += data.toString();
-          // Stream progress updates
           const lines = data.toString().split("\n").filter((l: string) => l.trim());
           if (lines.length > 0) {
             onUpdate?.({
@@ -201,7 +225,6 @@ export default function (pi: ExtensionAPI) {
           stderr += data.toString();
         });
 
-        // Handle abort
         signal?.addEventListener("abort", () => {
           proc.kill("SIGTERM");
         });
@@ -221,7 +244,6 @@ export default function (pi: ExtensionAPI) {
           }
         });
 
-        // Timeout: 10 minutes
         setTimeout(() => {
           if (!proc.killed) {
             proc.kill("SIGTERM");
@@ -242,22 +264,16 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // Status tool — programmatically query active + recent delegates
   pi.registerTool({
     name: "delegate_status",
     label: "Delegate Status",
-    description: "Show currently active delegate calls and recent history. Use this when you need to see what sub-agents are running, how long they've been running, or review recent completions.",
+    description: "Show currently active delegate calls and recent history. Shows 🔴 LIVE / ⚪ IDLE for each configured agent.",
     promptSnippet: "Show active delegates and recent history",
     promptGuidelines: [
       "Call delegate_status to check what sub-agents are currently running.",
       "Call delegate_status after a long-running delegation to verify it completed.",
     ],
-    parameters: Type.Object({
-      detail: Type.Boolean({
-        description: "If true, include full task previews. Default: false (compact).",
-        default: false,
-      }),
-    }),
+    parameters: Type.Object({}),
     async execute() {
       return {
         content: [{ type: "text", text: buildStatusReport() }],
@@ -269,7 +285,6 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // /delegates — human-readable status
   pi.registerCommand("delegates", {
     description: "Show active sub-agents and recent delegate history",
     handler: async (_args, ctx) => {
@@ -277,7 +292,6 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // /agents — list available sub-agents
   pi.registerCommand("agents", {
     description: "List available sub-agents",
     handler: async (_args, ctx) => {
