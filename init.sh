@@ -304,7 +304,7 @@ echo -e "  ${DIM}•${RESET} .pi/settings.json   — Orchestrator model: $ORCH_P
 echo -e "  ${DIM}•${RESET} .pi/models.json     — Provider config"
 echo -e "  ${DIM}•${RESET} .pi/sub-agents.json  — 5 sub-agents (edit to customize)"
 echo -e "  ${DIM}•${RESET} .pi/extensions/     — delegate tool + team roster"
-echo -e "  ${DIM}•${RESET} .pi/skills/         — code-review, feature-builder, refactor"
+echo -e "  ${DIM}•${RESET} .pi/skills/         — code-review, feature-builder, refactor, rtk-token-optimization"
 echo -e "  ${DIM}•${RESET} .pi/prompts/        — /review /refactor /feature /debug /test"
 if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
     echo -e "  ${DIM}•${RESET} .env               — API keys (gitignored)"

@@ -20,6 +20,9 @@
 - <error handling patterns>
 - <logging patterns>
 - <any project-specific rules>
+- Use `rtk <command>` for terminal output when possible (saves tokens)
+
+## Architecture
 
 ## Architecture
 <brief description of how the codebase is organized — key directories, layers, patterns>

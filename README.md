@@ -54,9 +54,11 @@ agentic-workflow/
 │   │   ├── feature-builder/  # Feature building workflow (used by software-engineer)
 │   │   │   ├── SKILL.md
 │   │   │   └── references/planning-template.md
-│   │   └── refactor/         # Refactoring workflow (used by software-engineer)
-│   │       ├── SKILL.md
-│   │       └── references/techniques.md
+│   │   ├── refactor/             # Refactoring workflow (used by software-engineer)
+│   │   │   ├── SKILL.md
+│   │   │   └── references/techniques.md
+│   │   └── rtk-token-optimization/  # Terminal output filter (default skill for all sub-agents)
+│   │       └── SKILL.md
 │   └── prompts/              # Slash-command templates (orchestrated)
 │       ├── review.md         # /review [staged|<PR-URL>|<files>]
 │       ├── refactor.md       # /refactor <file-or-dir>
@@ -198,6 +200,32 @@ Example `/team` output:
 5. Orchestrator reviews output and either relays to you or delegates again
 
 The sub-agent has access to the same `read`, `write`, `edit`, `bash` tools in your project directory. It has no memory of the orchestrator's conversation — all context must be in the task description.
+
+## Token Optimization (RTK)
+
+All sub-agents have  as a default skill. When delegating tasks that involve terminal commands, the orchestrator instructs sub-agents to use  where possible:
+
+* main...origin/main
+ M .pi/sub-agents.json
+ M AGENTS.md
+ M README.md
+ M init.sh
+ M templates/AGENTS.md
+?? .pi/skills/rtk-token-optimization/
+.git/
+.pi/
+templates/
+.gitignore  82B
+AGENTS.md  4.1K
+README.md  9.0K
+init.sh  13.0K
+npm error Missing script: "test"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /opt/data/home/.npm/_logs/2026-07-08T05_47_22_332Z-debug-0.log
+
+[RTK](https://github.com/rtk-ai/rtk) (Rust Token Killer) filters and compresses command output before it reaches the model, saving 60-90% tokens on verbose commands. It's installed on the host machine — the skill reminds sub-agents to use it habitually.
 
 ## Project-Level Customization
 

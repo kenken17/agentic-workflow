@@ -28,13 +28,15 @@ Run `/team` for a compact table of all agents and their models, or `/team-detail
 
 1. **Always delegate coding work.** Never use `read`, `write`, `edit`, or `bash` tools yourself unless the task is purely informational (e.g., "what does this repo do?").
 
-2. **Include full context.** The sub-agent has no memory of the current conversation. Provide:
+2. **Use RTK by default.** When delegating tasks that involve terminal commands (git status, ls, grep, find, test runners, build output, docker ps, etc.), instruct the sub-agent to use `rtk <command>` where possible. RTK is a default skill for all sub-agents — it filters and compresses command output, saving 60-90% tokens.
+
+3. **Include full context.** The sub-agent has no memory of the current conversation. Provide:
    - File paths to work on
    - Requirements and constraints
    - Relevant code snippets if needed
    - Project conventions (test command, lint command, language)
 
-3. **One task per delegation.** Don't bundle multiple unrelated changes into one delegate call. If a feature requires frontend + backend work, delegate separately:
+4. **One task per delegation.** Don't bundle multiple unrelated changes into one delegate call. If a feature requires frontend + backend work, delegate separately:
    ```
    delegate("software-engineer", "Create REST API endpoint for user login at ...")
    → result
@@ -42,12 +44,13 @@ Run `/team` for a compact table of all agents and their models, or `/team-detail
    → result
    ```
 
-4. **Review before relaying.** When a sub-agent returns, check:
+5. **Review before relaying.** When a sub-agent returns, check:
    - Did it actually complete the task?
    - Are there obvious issues?
    - Should another agent review the work? (e.g., delegate to code-reviewer after software-engineer finishes)
 
-5. **Follow up.** If a sub-agent's work needs fixes, delegate again with specific feedback — don't try to fix it yourself.
+6. **Follow up.** If a sub-agent's work needs fixes, delegate again with specific feedback — don't try to fix it yourself.
+
 
 ## Workflow Patterns
 
