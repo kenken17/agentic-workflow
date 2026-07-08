@@ -17,6 +17,69 @@ interface SubAgentsConfig {
   agents: Record<string, AgentConfig>;
 }
 
+// State tracking for active and completed delegate calls
+const activeDelegates = new Map<string, { agent: string; taskPreview: string; startTime: number }>();
+const delegateHistory: Array<{ agent: string; taskPreview: string; startTime: number; endTime: number; status: "ok" | "error" | "timeout" | "aborted" }> = [];
+const MAX_HISTORY = 50;
+
+function addActive(toolCallId: string, agent: string, task: string) {
+  activeDelegates.set(toolCallId, {
+    agent,
+    taskPreview: task.slice(0, 120),
+    startTime: Date.now(),
+  });
+}
+
+function removeActive(toolCallId: string, status: "ok" | "error" | "timeout" | "aborted") {
+  const entry = activeDelegates.get(toolCallId);
+  if (!entry) return;
+  activeDelegates.delete(toolCallId);
+  delegateHistory.unshift({
+    agent: entry.agent,
+    taskPreview: entry.taskPreview,
+    startTime: entry.startTime,
+    endTime: Date.now(),
+    status,
+  });
+  if (delegateHistory.length > MAX_HISTORY) delegateHistory.length = MAX_HISTORY;
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
+}
+
+function buildStatusReport(): string {
+  const lines: string[] = ["", "=== DELEGATE STATUS ===", ""];
+
+  // Active
+  if (activeDelegates.size === 0) {
+    lines.push("No active delegates.");
+  } else {
+    lines.push(`Active delegates (${activeDelegates.size}):`);
+    lines.push("");
+    for (const [id, d] of activeDelegates.entries()) {
+      lines.push(`  [${d.agent}] ${d.taskPreview.slice(0, 80)}`);
+      lines.push(`    running for ${formatDuration(Date.now() - d.startTime)}`);
+      lines.push("");
+    }
+  }
+
+  // History
+  if (delegateHistory.length > 0) {
+    lines.push(`Recent history (last ${delegateHistory.length}):`);
+    lines.push("");
+    for (const h of delegateHistory.slice(0, 10)) {
+      const icon = h.status === "ok" ? "✓" : h.status === "aborted" ? "×" : "⚠";
+      lines.push(`  ${icon} [${h.agent}] ${h.taskPreview.slice(0, 80)} (${formatDuration(h.endTime - h.startTime)})`);
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
 // Look for sub-agents.json in project-local first, then global
 function findConfigPath(): string | null {
   const paths = [
@@ -90,6 +153,9 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
+      // Track this delegate
+      addActive(toolCallId, params.agent, params.task);
+
       // Notify that delegation is starting
       onUpdate?.({
         content: [{
@@ -141,13 +207,16 @@ export default function (pi: ExtensionAPI) {
         });
 
         proc.on("error", (err) => {
+          removeActive(toolCallId, "error");
           reject(new Error(`Failed to spawn pi: ${err.message}`));
         });
 
         proc.on("close", (code) => {
           if (code !== 0) {
+            removeActive(toolCallId, code === null ? "aborted" : "error");
             reject(new Error(`pi exited with code ${code}. stderr: ${stderr}`));
           } else {
+            removeActive(toolCallId, "ok");
             resolvePromise(stdout || stderr || "(no output)");
           }
         });
@@ -156,6 +225,7 @@ export default function (pi: ExtensionAPI) {
         setTimeout(() => {
           if (!proc.killed) {
             proc.kill("SIGTERM");
+            removeActive(toolCallId, "timeout");
             reject(new Error("Sub-agent timed out after 10 minutes"));
           }
         }, 600000);
@@ -172,7 +242,42 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // Register a command to list available sub-agents
+  // Status tool — programmatically query active + recent delegates
+  pi.registerTool({
+    name: "delegate_status",
+    label: "Delegate Status",
+    description: "Show currently active delegate calls and recent history. Use this when you need to see what sub-agents are running, how long they've been running, or review recent completions.",
+    promptSnippet: "Show active delegates and recent history",
+    promptGuidelines: [
+      "Call delegate_status to check what sub-agents are currently running.",
+      "Call delegate_status after a long-running delegation to verify it completed.",
+    ],
+    parameters: Type.Object({
+      detail: Type.Boolean({
+        description: "If true, include full task previews. Default: false (compact).",
+        default: false,
+      }),
+    }),
+    async execute() {
+      return {
+        content: [{ type: "text", text: buildStatusReport() }],
+        details: {
+          activeCount: activeDelegates.size,
+          historyCount: delegateHistory.length,
+        },
+      };
+    },
+  });
+
+  // /delegates — human-readable status
+  pi.registerCommand("delegates", {
+    description: "Show active sub-agents and recent delegate history",
+    handler: async (_args, ctx) => {
+      ctx.ui.notify(buildStatusReport(), "info");
+    },
+  });
+
+  // /agents — list available sub-agents
   pi.registerCommand("agents", {
     description: "List available sub-agents",
     handler: async (_args, ctx) => {

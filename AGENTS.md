@@ -22,7 +22,9 @@ Use the `delegate` tool with the `agent` parameter:
 | `devops-engineer` | CI/CD, Docker, infrastructure, deployment | Anthropic Claude Sonnet 4 |
 | `test-engineer` | Writing and running tests, test coverage | OpenAI GPT-4o |
 
-Run `/team` for a compact table of all agents and their models, or `/team-detail` for full details. `/agents` also works.
+Run `/team` for a compact table, `/team-detail` for full personas, `/agents` for a list, or `/delegates` to see active and recently completed delegate calls. Call `delegate_status` programmatically from the orchestrator.
+
+## Delegation Rules
 
 ## Delegation Rules
 
