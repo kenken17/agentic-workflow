@@ -328,7 +328,7 @@ echo ""
 echo -e "${BOLD}Next steps:${RESET}"
 echo -e "  ${CYAN}cd${RESET} $PROJECT_DIR"
 if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
-    echo -e "  ${CYAN}source${RESET} .env  ${DIM}# load API keys into shell${RESET}"
+    echo -e "  ${CYAN}set -a && source${RESET} .env ${CYAN}&& set +a${RESET}  ${DIM}# load API keys into shell${RESET}"
 else
     echo -e "  ${DIM}# Set API keys as env vars or use /login in Pi${RESET}"
 fi

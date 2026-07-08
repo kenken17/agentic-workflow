@@ -94,7 +94,7 @@ When it's done:
 
 ```bash
 cd my-app
-source .env    # load API keys into shell
+set -a && source .env && set +a  # load API keys into shell
 pi             # start coding with your agent team
 ```
 
