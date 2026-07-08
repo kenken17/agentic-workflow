@@ -6,7 +6,9 @@
 # If no name given, it prompts interactively.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+SCRIPT_DIR="${SCRIPT_DIR%%[[:space:]]*}"
 
 # ─── Colors ───
 BOLD="\033[1m"
