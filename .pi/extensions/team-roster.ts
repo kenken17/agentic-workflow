@@ -15,11 +15,11 @@ interface SubAgentsConfig {
   agents: Record<string, AgentConfig>;
 }
 
-// Look for sub-agents.json in both global and project-local locations
+// Look for sub-agents.json in project-local first, then global
 function findConfigPath(): string | null {
   const paths = [
+    resolve(process.cwd(), ".pi", "sub-agents.json"),
     resolve(homedir(), ".pi", "agent", "sub-agents.json"),
-    resolve(process.cwd(), ".pi", "agent", "sub-agents.json"),
   ];
   for (const p of paths) {
     if (existsSync(p)) return p;
